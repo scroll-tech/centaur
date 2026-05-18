@@ -1,5 +1,6 @@
 import type { WebClient } from '@slack/web-api'
 import { centaurApiKey, type AppConfig } from '../config'
+import { logError } from '../logging'
 import { AgentSessionRenderer } from '../slack/agent-session'
 import { codexFooter } from '../slack/codex-session'
 import { withLaminarSpan } from './laminar'
@@ -12,7 +13,7 @@ export function startFinalDeliveryPoller(config: AppConfig, client: WebClient): 
     try {
       await pollOnce(config, client)
     } catch (error) {
-      console.error('final_delivery_poll_failed', error)
+      logError('final_delivery_poll_failed', error)
     }
   }
   setInterval(tick, 2_000).unref?.()
@@ -50,7 +51,7 @@ async function pollOnce(config: AppConfig, client: WebClient): Promise<void> {
             retry_after_seconds: 10
           },
           delivery
-        ).catch(failError => console.error('final_delivery_mark_failed_failed', failError))
+        ).catch(failError => logError('final_delivery_mark_failed_failed', failError))
       }
     })
   }

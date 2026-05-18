@@ -26,6 +26,7 @@ from api.laminar_tracing import (
     start_span,
 )
 from api.logging_config import configure_structlog
+from api.retention import start_retention_sweeper, stop_retention_sweeper
 from api.trace_context import get_or_create_thread_trace_id, traceparent_from_trace_id
 from api.vm_metrics import (
     HTTP_REQUESTS_IN_PROGRESS,
@@ -202,6 +203,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if workflow_worker_enabled:
         await start_workflow_worker(app.state.db_pool)
     start_push_loop(app.state.db_pool)
+    await start_retention_sweeper(app.state.db_pool)
     watcher_task = asyncio.create_task(_watch_tools(tool_manager))
     wf_watcher_task = asyncio.create_task(_watch_workflows())
     reconcile_task = (
@@ -241,6 +243,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # background workers and the DB pool.
         await _drain_in_flight_requests()
 
+        await stop_retention_sweeper()
         await stop_push_loop()
         if warm_pool_enabled:
             await stop_replenish_loop()

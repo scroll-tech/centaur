@@ -358,6 +358,11 @@ MESSAGE_ATTACHMENTS_TOTAL = Counter(
     "Attachment references stored on messages.",
     ["role"],
 )
+RETENTION_SWEEP_ROWS_TOTAL = Counter(
+    "agent_retention_sweep_rows_total",
+    "Rows selected or redacted by the retention sweeper.",
+    ["target", "action", "dry_run"],
+)
 USAGE_TOKENS_TOTAL = Counter(
     "agent_usage_tokens_total",
     "Observed model token usage by harness, model, and token category.",
@@ -553,6 +558,15 @@ def record_message_observation(role: str, text_chars: int, attachment_count: int
     MESSAGE_TEXT_CHARS.labels(role=role).observe(max(text_chars, 0))
     if attachment_count > 0:
         MESSAGE_ATTACHMENTS_TOTAL.labels(role=role).inc(attachment_count)
+
+
+def record_retention_sweep(target: str, action: str, dry_run: bool, count: int) -> None:
+    if count > 0:
+        RETENTION_SWEEP_ROWS_TOTAL.labels(
+            target=target,
+            action=action,
+            dry_run=str(dry_run).lower(),
+        ).inc(count)
 
 
 def record_ttft(harness: str, ttft_s: float) -> None:

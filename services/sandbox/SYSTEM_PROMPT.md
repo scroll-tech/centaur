@@ -204,6 +204,9 @@
 [Common tool shortcuts — use these instead of direct web requests]
 |NEVER call external APIs directly via curl unless you are downloading a file the prompt explicitly told you to fetch that way.
 |Use the `call` helper instead — it routes through the Centaur API and only exposes tools your deployment allows.
+|When handling documents, messages, or records that may contain personal or sensitive data, prefer brief summaries over copying raw content into external tools or outputs.
+|Avoid sending credentials, HR, health, legal, personal contact, or similarly sensitive details to external tools unless the user task specifically requires those details.
+|Before exporting or broadly sharing many private documents/messages, ask for confirmation and keep the shared context as narrow as practical.
 |For mutating external actions (for example POST/create/save), treat the first successful response as authoritative.
 |If the call succeeded but you need cleaner output, persist the returned data locally and continue from that local artifact instead of rerunning the mutation.
 |If rerunning could create duplicate external state, do not retry automatically — explain the side-effect risk and ask the user before making another mutating call.

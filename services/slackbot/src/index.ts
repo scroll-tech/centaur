@@ -7,6 +7,7 @@ import { prettyJSON } from 'hono/pretty-json'
 import { startFinalDeliveryPoller } from './centaur/final-delivery'
 import { CentaurHandoff } from './centaur/handoff'
 import { loadConfig } from './config'
+import { logError, logWarn, sanitizeLogValue } from './logging'
 import { AgentSessionRenderer } from './slack/agent-session'
 import { authorizeSlackOrg } from './slack/authorization'
 import { CodexSessionRenderer, codexFooter } from './slack/codex-session'
@@ -31,7 +32,7 @@ void resolver
   .resolve({})
   .then(({ client }) => startFinalDeliveryPoller(config, client))
   .catch(error => {
-    console.error('final_delivery_poller_start_failed', error)
+    logError('final_delivery_poller_start_failed', error)
   })
 
 type Variables = {
@@ -413,7 +414,7 @@ async function processSlackEvent(envelope: SlackEnvelope): Promise<void> {
   const result = await handoff.emit(normalized)
   if (!result.ok) {
     if (result.status === 409) {
-      console.warn('centaur_slack_handoff_conflict', result.body)
+      logWarn('centaur_slack_handoff_conflict', result.body)
       return
     }
     throw new Error(`Centaur Slack handoff failed: ${result.status}`)
@@ -422,16 +423,22 @@ async function processSlackEvent(envelope: SlackEnvelope): Promise<void> {
 
 function slackApiErrorResponse(c: Context, error: unknown) {
   const data = (error as { data?: unknown })?.data
-  if (data && typeof data === 'object') return c.json(data, 502)
+  if (data && typeof data === 'object') return c.json(sanitizeLogValue(data), 502)
   return c.json(
-    { ok: false, error: error instanceof Error ? error.message : 'slack_api_error' },
+    {
+      ok: false,
+      error:
+        error instanceof Error
+          ? String(sanitizeLogValue(error.message))
+          : 'slack_api_error'
+    },
     502
   )
 }
 
 function runInBackground(c: Context, promise: Promise<void>): void {
   const guarded = promise.catch((error: unknown) => {
-    console.error('slack_event_processing_failed', error)
+    logError('slack_event_processing_failed', error)
   })
   const executionCtx = getExecutionContext(c)
   if (executionCtx) {
