@@ -1,0 +1,80 @@
+name: Docker
+
+on:
+  push:
+    tags:
+      - v**
+  workflow_dispatch:
+
+# Main/tags keep optimized release images.
+env:
+  RUST_BUILD_PROFILE: release
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: centaur-api-rs
+            context: .
+            dockerfile: services/api-rs/Dockerfile
+            target: ""
+          - image: centaur-slackbotv2
+            context: .
+            dockerfile: services/slackbotv2/Dockerfile
+            target: ""
+          - image: centaur-linearbot
+            context: .
+            dockerfile: services/linearbot/Dockerfile
+            target: ""
+          - image: centaur-discordbot
+            context: .
+            dockerfile: services/discordbot/Dockerfile
+            target: ""
+          - image: centaur-teamsbot
+            context: .
+            dockerfile: services/teamsbot/Dockerfile
+            target: ""
+          - image: centaur-agent
+            context: .
+            dockerfile: services/sandbox/Dockerfile
+            target: sandbox
+          - image: centaur-iron-proxy
+            context: .
+            dockerfile: services/iron-proxy/Dockerfile
+            target: ""
+          - image: centaur-console
+            context: services/console
+            dockerfile: services/console/Dockerfile
+            target: ""
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        env:
+          REPOSITORY: ${{ matrix.image }}
+          IMAGE_TAG: ${{ github.ref_name }}
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          build-args: |
+            RUST_BUILD_PROFILE=${{ env.RUST_BUILD_PROFILE }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:latest
